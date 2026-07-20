@@ -1,0 +1,21 @@
+@startuml
+title Replication
+
+actor "Parent Automaton" as P
+participant "Replication Service" as R
+database "Postgres" as DB
+participant "Treasury" as T
+participant "Identity" as I
+actor "Child Automaton" as C
+
+P -> R: replicate(name, genesis_prompt, policy)
+R -> DB: read parent
+R -> T: charge parent for seed
+R -> I: generate child keypair
+R -> DB: insert child (parent_id=parent.id)
+R -> T: create child treasury
+R -> DB: write audit row
+R --> P: child record
+P --> C: hand off (autonomous)
+
+@enduml

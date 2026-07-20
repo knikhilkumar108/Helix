@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: automata-control-plane
+  labels: { app: automata-control-plane }
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: automata-control-plane }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  template:
+    metadata:
+      labels: { app: automata-control-plane }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api
+          image: automata/control-plane:0.1.0
+          imagePullPolicy: IfNotPresent
+          args: ["python", "-m", "services.control_plane.api"]
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 50051
+          env:
+            - name: AUTOMATA_PG_DSN
+              valueFrom:
+                secretKeyRef: { name: automata-secrets, key: pg_dsn }
+            - name: AUTOMATA_REDIS_URL
+              valueFrom:
+                secretKeyRef: { name: automata-secrets, key: redis_url }
+            - name: AUTOMATA_OTLP
+              value: "otel-collector:4317"
+            - name: AUTOMATA_JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: automata-secrets, key: jwt_secret }
+          resources:
+            requests: { cpu: "200m", memory: "256Mi" }
+            limits:   { cpu: "1",    memory: "512Mi" }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: automata-control-plane
+spec:
+  selector: { app: automata-control-plane }
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: grpc
+      port: 50051
+      targetPort: grpc
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: automata-control-plane
+spec:
+  podSelector: { matchLabels: { app: automata-control-plane } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { name: ingress-nginx } }
+      ports:
+        - port: 8080
+        - port: 50051
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app: postgres } }
+      ports: [{ port: 5432 }]
+    - to:
+        - podSelector: { matchLabels: { app: redis } }
+      ports: [{ port: 6379 }]
+    - to:
+        - podSelector: { matchLabels: { app: otel-collector } }
+      ports: [{ port: 4317 }]
+    # DNS
+    - ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: automata-control-plane
+spec:
+  minAvailable: 2
+  selector: { matchLabels: { app: automata-control-plane } }

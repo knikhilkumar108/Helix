@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "automata.fullname" . }}-control-plane
+spec:
+  replicas: {{ .Values.controlPlane.replicaCount }}
+  selector:
+    matchLabels: { app: {{ include "automata.name" . }}-control-plane }
+  template:
+    metadata:
+      labels: { app: {{ include "automata.name" . }}-control-plane }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["python", "-m", "services.control_plane.api"]
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: grpc, containerPort: 50051 }
+          env:
+            - { name: AUTOMATA_PG_DSN, valueFrom: { secretKeyRef: { name: {{ include "automata.fullname" . }}-secrets, key: pg_dsn } } }
+            - { name: AUTOMATA_REDIS_URL, valueFrom: { secretKeyRef: { name: {{ include "automata.fullname" . }}-secrets, key: redis_url } } }
+            - { name: AUTOMATA_OTLP, value: "{{ .Values.otelCollector.endpoint }}" }
+          resources: {{- toYaml .Values.controlPlane.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "automata.fullname" . }}-control-plane
+spec:
+  selector: { app: {{ include "automata.name" . }}-control-plane }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+    - { name: grpc, port: 50051, targetPort: grpc }

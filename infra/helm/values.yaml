@@ -1,0 +1,51 @@
+# Default values for the Automata Helm chart.
+# Override per environment (e.g. -f values.prod.yaml).
+
+image:
+  repository: automata/control-plane
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+controlPlane:
+  replicaCount: 3
+  resources:
+    requests: { cpu: "200m", memory: "256Mi" }
+    limits:   { cpu: "1",    memory: "512Mi" }
+  pdb:
+    minAvailable: 2
+
+worker:
+  replicaCount: 6
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 30
+    cpuTargetUtilization: 65
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "2",    memory: "2Gi" }
+
+postgres:
+  enabled: true
+  persistence:
+    size: 100Gi
+
+redis:
+  enabled: true
+
+otelCollector:
+  enabled: true
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: automata.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+secrets:
+  pg_dsn: "postgresql://automata:CHANGE_ME@postgres:5432/automata"
+  redis_url: "redis://redis:6379/0"
+  jwt_secret: "CHANGE_ME"

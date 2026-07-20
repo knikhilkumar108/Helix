@@ -1,0 +1,83 @@
+// Proto definitions for the Automata platform gRPC surface.
+// Run `make proto` to regenerate the stubs (the build step is in infra/ci).
+//
+// Note: this is a thin subset that mirrors the REST API. Full coverage is
+// added incrementally as new services come online.
+
+syntax = "proto3";
+
+package automata.v1;
+
+option go_package = "github.com/automata/platform/api/grpc;automata";
+
+import "google/protobuf/timestamp.proto";
+
+service Automata {
+  rpc CreateAutomaton (CreateAutomatonRequest) returns (Automaton);
+  rpc GetAutomaton    (GetAutomatonRequest)    returns (Automaton);
+  rpc ListAutomata    (ListAutomataRequest)    returns (stream Automaton);
+  rpc Pause           (LifecycleRequest)       returns (Ack);
+  rpc Resume          (LifecycleRequest)       returns (Ack);
+  rpc Fund            (FundRequest)            returns (FundResponse);
+  rpc StreamEvents    (StreamEventsRequest)    returns (stream Event);
+}
+
+message CreateAutomatonRequest {
+  string name = 1;
+  string genesis_prompt = 2;
+  string parent_id = 3;
+  int64  initial_balance_micro = 4;
+  string currency = 5;
+}
+
+message GetAutomatonRequest {
+  string id = 1;
+}
+
+message ListAutomataRequest {
+  uint32 limit = 1;
+  string cursor = 2;
+}
+
+message LifecycleRequest {
+  string id = 1;
+}
+
+message FundRequest {
+  string id = 1;
+  int64  amount_micro = 2;
+  string currency = 3;
+  string source = 4;
+}
+
+message FundResponse {
+  string entry_id = 1;
+  int64  amount_micro = 2;
+  string currency = 3;
+}
+
+message StreamEventsRequest {
+  string id = 1;
+}
+
+message Event {
+  google.protobuf.Timestamp occurred_at = 1;
+  string kind = 2;
+  string payload_json = 3;
+}
+
+message Automaton {
+  string id = 1;
+  string name = 2;
+  string state = 3;
+  string public_key = 4;
+  string wallet_address = 5;
+  int64  balance_micro = 6;
+  string currency = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message Ack {
+  bool ok = 1;
+}

@@ -1,0 +1,128 @@
+openapi: 3.1.0
+info:
+  title: Automata Control Plane
+  version: 0.1.0
+  description: |
+    HTTP API for the Automata platform.
+servers:
+  - url: http://localhost:8080
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    AutomatonId:
+      in: path
+      name: automaton_id
+      required: true
+      schema: { type: string, pattern: '^atm_[a-f0-9]{32}$' }
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      summary: Aggregated health report
+      responses:
+        "200": { description: OK }
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        "200": { description: OK }
+  /v1/automata:
+    get:
+      summary: List automata
+      responses:
+        "200": { description: OK }
+    post:
+      summary: Create an automaton
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAutomatonRequest' }
+      responses:
+        "201": { description: Created }
+  /v1/automata/{automaton_id}:
+    parameters: [ { $ref: '#/components/parameters/AutomatonId' } ]
+    get:
+      summary: Get an automaton
+      responses:
+        "200": { description: OK }
+        "404": { description: Not found }
+  /v1/automata/{automaton_id}/pause:
+    post: { summary: Pause, responses: { "200": { description: OK } } }
+  /v1/automata/{automaton_id}/resume:
+    post: { summary: Resume, responses: { "200": { description: OK } } }
+  /v1/automata/{automaton_id}/terminate:
+    post: { summary: Terminate, responses: { "200": { description: OK } } }
+  /v1/automata/{automaton_id}/plans:
+    get: { summary: List plans, responses: { "200": { description: OK } } }
+  /v1/automata/{automaton_id}/tasks:
+    get: { summary: List tasks, responses: { "200": { description: OK } } }
+  /v1/automata/{automaton_id}/events:
+    get: { summary: Tail events, responses: { "200": { description: OK } } }
+  /v1/treasury/{automaton_id}/balance:
+    get: { summary: Treasury balance, responses: { "200": { description: OK } } }
+  /v1/treasury/{automaton_id}/fund:
+    post:
+      summary: Fund an automaton
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/FundRequest' } }
+      responses: { "200": { description: OK } }
+  /v1/treasury/{automaton_id}/ledger:
+    get:
+      summary: Read the ledger
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 100 }
+      responses: { "200": { description: OK } }
+  /v1/memory/{automaton_id}:
+    get: { summary: List memory entries, responses: { "200": { description: OK } } }
+  /v1/memory/{automaton_id}/search:
+    get:
+      summary: Search memory
+      parameters:
+        - in: query
+          name: query
+          schema: { type: string }
+        - in: query
+          name: k
+          schema: { type: integer, default: 5 }
+      responses: { "200": { description: OK } }
+  /v1/marketplace/offers:
+    get: { summary: List offers, responses: { "200": { description: OK } } }
+    post: { summary: Create offer, responses: { "201": { description: Created } } }
+  /v1/marketplace/orders:
+    post: { summary: Place order, responses: { "201": { description: Created } } }
+  /v1/audit/log:
+    get: { summary: Read audit log, responses: { "200": { description: OK } } }
+  /v1/audit/verify:
+    get: { summary: Verify the audit chain, responses: { "200": { description: OK } } }
+components:
+  schemas:
+    CreateAutomatonRequest:
+      type: object
+      required: [name, genesis_prompt]
+      properties:
+        name: { type: string }
+        genesis_prompt: { type: string }
+        parent_id: { type: string, nullable: true }
+        initial_balance_micro: { type: integer, minimum: 0 }
+        currency: { type: string, default: USDC }
+        metadata:
+          type: object
+          additionalProperties: { type: string }
+    FundRequest:
+      type: object
+      required: [automaton_id, amount_micro]
+      properties:
+        automaton_id: { type: string }
+        amount_micro: { type: integer, minimum: 0 }
+        currency: { type: string, default: USDC }
+        source: { type: string, default: external }

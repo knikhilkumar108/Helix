@@ -1,0 +1,66 @@
+@startuml
+title Architecture
+
+package "Edge" {
+  [User] as U
+  [Dashboard] as D
+}
+
+package "Control Plane" {
+  [REST API] as R
+  [gRPC API] as G
+  [Auth] as A
+}
+
+package "Services" {
+  [Identity] as I
+  [Treasury] as T
+  [Memory] as M
+  [Planner] as P
+  [Router] as L
+  [Marketplace] as K
+  [Replication] as X
+  [Security] as S
+  [Observability] as O
+  [Audit] as AU
+}
+
+package "Runtime" {
+  [Loop] as LO
+  [Tools] as TO
+  [Sandbox] as SA
+}
+
+database "Postgres" as PG
+database "Redis" as RD
+database "S3" as S3
+
+U --> D
+D --> R
+U --> R
+U --> G
+R --> I
+R --> T
+R --> M
+R --> P
+R --> K
+R --> X
+R --> AU
+G --> T
+G --> M
+P --> L
+P --> M
+LO --> T
+LO --> M
+LO --> P
+LO --> TO
+TO --> SA
+I --> S
+T --> S
+AU --> S3
+S --> PG
+S --> S3
+O --> PG
+O --> RD
+
+@enduml

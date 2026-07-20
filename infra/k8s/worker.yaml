@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: automata-worker
+  labels: { app: automata-worker }
+spec:
+  serviceName: automata-worker
+  replicas: 6
+  selector:
+    matchLabels: { app: automata-worker }
+  template:
+    metadata:
+      labels: { app: automata-worker }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker
+          image: automata/worker:0.1.0
+          args: ["python", "-m", "services.control_plane.worker", "--automaton-id", "PLACEHOLDER"]
+          ports:
+            - name: metrics
+              containerPort: 8081
+          env:
+            - name: AUTOMATA_PG_DSN
+              valueFrom:
+                secretKeyRef: { name: automata-secrets, key: pg_dsn }
+            - name: AUTOMATA_OTLP
+              value: "otel-collector:4317"
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "2",    memory: "2Gi" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
+        - name: workspace
+          emptyDir: { sizeLimit: 2Gi }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: automata-worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: automata-worker
+  minReplicas: 3
+  maxReplicas: 30
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
+    - type: Pods
+      pods:
+        metric: { name: queue_depth }
+        target: { type: AverageValue, averageValue: "5" }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 30

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local state (DO NOT commit chat audit DBs, demo runs, etc.)
+/tmp/automata-*/
+state/
+runtime_state/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Env / secrets
+.env
+.env.local
+*.pem
+secrets/

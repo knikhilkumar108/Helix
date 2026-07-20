@@ -1,0 +1,37 @@
+@startuml
+title Runtime Loop
+
+start
+
+:Observe;
+:Reason;
+:Retrieve memory;
+:Generate plan;
+:Estimate cost;
+
+if (Can afford?) then (yes)
+  :Constitution eval;
+  if (Allowed?) then (yes)
+    :RBAC/ABAC eval;
+    if (Allowed?) then (yes)
+      :Execute action;
+      :Verify;
+      :Learn;
+      :Update memory;
+      :Pay compute;
+    else (no)
+      :Record denial;
+    endif
+  else (deny)
+    :Record denial;
+  endif
+else (no)
+  :Record budget block;
+endif
+
+:Sleep;
+:Checkpoint;
+
+stop
+
+@enduml

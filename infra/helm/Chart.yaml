@@ -1,0 +1,9 @@
+apiVersion: v2
+name: automata
+description: |
+  Autonomous Economic AI Automata Platform.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Automata Team

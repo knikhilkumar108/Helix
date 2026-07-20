@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Automata Operator Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #12161f;
+      --panel-2: #1a2030;
+      --fg: #e6edf3;
+      --muted: #8b95a7;
+      --accent: #7c9cff;
+      --good: #6ad27e;
+      --warn: #f5b86a;
+      --bad: #ef6e6e;
+      --border: #1f2632;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background: var(--bg); color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    header .tag { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; font-size: 12px; color: var(--muted); }
+    main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+    .panel h2 { font-size: 13px; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 500; }
+    .panel .body { padding: 8px 0; }
+    .row { padding: 8px 14px; display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .row:hover { background: var(--panel-2); }
+    .row:last-child { border-bottom: 0; }
+    .row .name { font-weight: 500; }
+    .row .meta { color: var(--muted); font-size: 12px; }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--border); }
+    .pill.running { color: var(--good); border-color: rgba(106,210,126,0.4); }
+    .pill.paused { color: var(--warn); border-color: rgba(245,184,106,0.4); }
+    .pill.suspended { color: var(--bad); border-color: rgba(239,110,110,0.4); }
+    .pill.created, .pill.terminated { color: var(--muted); }
+    .detail { padding: 16px; }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 16px; font-size: 13px; }
+    .kv .k { color: var(--muted); }
+    .kv .v { word-break: break-all; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .actions button { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+    .actions button:hover { background: var(--accent); color: #0b0d12; border-color: transparent; }
+    .actions button.danger:hover { background: var(--bad); }
+    .empty { color: var(--muted); padding: 16px; font-size: 13px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    pre { background: var(--panel-2); padding: 10px; border-radius: 6px; overflow: auto; max-height: 320px; }
+    .small { font-size: 12px; color: var(--muted); }
+    .topbar { margin-left: auto; display: flex; gap: 8px; }
+    .topbar input { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
+    .topbar button { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Automata Operator Dashboard</h1>
+  <span class="tag" id="api-tag">API: —</span>
+  <div class="topbar">
+    <input id="api-url" placeholder="http://localhost:8080" style="width:280px" />
+    <button onclick="setApi()">Set API</button>
+    <button onclick="refresh()">Refresh</button>
+  </div>
+</header>
+<main>
+  <section class="panel">
+    <h2>Automata</h2>
+    <div class="body" id="list"><div class="empty">Loading…</div></div>
+  </section>
+  <section class="panel">
+    <h2 id="detail-title">Select an Automaton</h2>
+    <div class="body detail" id="detail"><div class="empty">No Automaton selected.</div></div>
+  </section>
+</main>
+<script>
+const state = { api: localStorage.getItem("automata.api") || "http://localhost:8080", selected: null };
+document.getElementById("api-url").value = state.api;
+document.getElementById("api-tag").textContent = "API: " + state.api;
+
+function setApi() {
+  const v = document.getElementById("api-url").value.trim();
+  if (v) { state.api = v; localStorage.setItem("automata.api", v); document.getElementById("api-tag").textContent = "API: " + state.api; refresh(); }
+}
+
+async function api(path) {
+  const r = await fetch(state.api + path);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+function fmt(x) { return x == null ? "" : String(x); }
+
+function renderList(items) {
+  const el = document.getElementById("list");
+  if (!items.length) { el.innerHTML = '<div class="empty">No Automata yet. Create one with the CLI.</div>'; return; }
+  el.innerHTML = items.map(a => `
+    <div class="row" onclick="select('${a.id}')">
+      <div>
+        <div class="name">${a.name}</div>
+        <div class="meta">${a.id} · ${a.base_currency}</div>
+      </div>
+      <span class="pill ${a.state}">${a.state}</span>
+    </div>
+  `).join("");
+}
+
+async function select(id) {
+  state.selected = id;
+  const [a, bal, ledger, events] = await Promise.all([
+    api("/v1/automata/" + id),
+    api("/v1/treasury/" + id + "/balance"),
+    api("/v1/treasury/" + id + "/ledger?limit=20"),
+    api("/v1/automata/" + id + "/events"),
+  ]);
+  document.getElementById("detail-title").textContent = a.name + " — " + a.id;
+  document.getElementById("detail").innerHTML = `
+    <div class="grid-2">
+      <div>
+        <div class="kv">
+          <div class="k">State</div><div class="v"><span class="pill ${a.state}">${a.state}</span></div>
+          <div class="k">Wallet</div><div class="v">${a.wallet_address}</div>
+          <div class="k">Public key</div><div class="v">${a.public_key}</div>
+          <div class="k">Balance</div><div class="v">${bal.balance}</div>
+          <div class="k">Version</div><div class="v">${a.version}</div>
+          <div class="k">Reputation</div><div class="v">${a.reputation}</div>
+          <div class="k">Created</div><div class="v">${a.created_at}</div>
+        </div>
+        <div class="actions">
+          <button onclick="act('${a.id}','pause')">Pause</button>
+          <button onclick="act('${a.id}','resume')">Resume</button>
+          <button class="danger" onclick="act('${a.id}','terminate')">Terminate</button>
+        </div>
+      </div>
+      <div>
+        <div class="small">Treasury health</div>
+        <pre>${JSON.stringify(bal.health, null, 2)}</pre>
+      </div>
+    </div>
+    <h3 style="margin-top:18px;font-size:13px;color:var(--muted)">Ledger (latest 20)</h3>
+    <pre>${JSON.stringify(ledger, null, 2)}</pre>
+    <h3 style="margin-top:18px;font-size:13px;color:var(--muted)">Recent events</h3>
+    <pre>${JSON.stringify(events.slice(-20), null, 2)}</pre>
+  `;
+}
+
+async function act(id, verb) {
+  await fetch(state.api + "/v1/automata/" + id + "/" + verb, { method: "POST" });
+  refresh();
+}
+
+async function refresh() {
+  try {
+    const items = await api("/v1/automata");
+    renderList(items);
+    if (state.selected) select(state.selected);
+  } catch (e) {
+    document.getElementById("list").innerHTML = '<div class="empty">Cannot reach API. Check the URL.</div>';
+  }
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

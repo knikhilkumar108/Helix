@@ -1,0 +1,15 @@
+{
+  "name": "@automata/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Automata platform",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test dist/__tests__/*.test.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
