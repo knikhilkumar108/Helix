@@ -1,5 +1,7 @@
 # Helix
 
+[![Tests](https://github.com/knikhilkumar108/Helix/actions/workflows/test.yml/badge.svg)](https://github.com/knikhilkumar108/Helix/actions/workflows/test.yml)
+
 > A self-funding, self-modifying autonomous agent platform.
 
 Helix is a research-grade implementation of an
@@ -39,6 +41,9 @@ passing tests.
 
 ## Quick orientation
 
+- **Live dashboard:** <https://knikhilkumar108.github.io/Helix/>
+  (the static UI; paste a control-plane URL in the top bar
+  to point it at your deployment)
 - `make explain` — tour the platform from your shell
 - [`docs/architecture/00-summary.md`](docs/architecture/00-summary.md) — the architecture tour
 - [`docs/architecture/19-state-of-platform.md`](docs/architecture/19-state-of-platform.md) — what each of the 14 systems does
@@ -153,7 +158,7 @@ helix/
 ├── runtime/              # The 14-stage tick
 ├── services/control_plane/  # FastAPI HTTP/WebSocket surface
 ├── api/                  # CLI / gRPC / REST stubs
-├── web/                  # Operator dashboard skeleton
+├── web/                  # Operator dashboard (deployed to GitHub Pages)
 ├── infra/                # K8s / Helm / Terraform / Docker (skeletons)
 ├── schemas/              # OpenAPI / proto definitions
 ├── sdks/                 # Python and TypeScript client SDKs

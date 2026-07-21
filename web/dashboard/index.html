@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Automata Operator Dashboard</title>
+  <title>Helix — Operator Dashboard</title>
   <style>
     :root {
       --bg: #0b0d12;
@@ -18,157 +18,670 @@
       --border: #1f2632;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0; padding: 0;
       background: var(--bg); color: var(--fg);
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 13px;
     }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Header ─────────────────────────────────────── */
     header {
-      padding: 12px 20px;
+      padding: 10px 20px;
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; gap: 12px;
+      background: var(--panel);
     }
-    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
-    header .tag { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; font-size: 12px; color: var(--muted); }
-    main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; }
-    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
-    .panel h2 { font-size: 13px; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 500; }
-    .panel .body { padding: 8px 0; }
-    .row { padding: 8px 14px; display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
+    header h1 .accent { color: var(--accent); }
+    header .tag { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; font-size: 11px; color: var(--muted); }
+    header .tag.live { color: var(--good); border-color: rgba(106,210,126,0.4); }
+    header .tag.dead { color: var(--bad); border-color: rgba(239,110,110,0.4); }
+    .topbar { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+    .topbar input {
+      background: var(--panel-2); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 5px 8px; font-family: inherit; font-size: 12px;
+      width: 320px;
+    }
+    .topbar button {
+      background: var(--panel-2); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 5px 10px; cursor: pointer; font-size: 12px;
+      font-family: inherit;
+    }
+    .topbar button:hover { background: var(--accent); color: #0b0d12; border-color: transparent; }
+    .topbar button.primary { background: var(--accent); color: #0b0d12; border-color: transparent; }
+    .topbar button.primary:hover { opacity: 0.9; }
+
+    /* ── Main grid ─────────────────────────────────── */
+    main {
+      display: grid;
+      grid-template-columns: 300px 1fr 360px;
+      gap: 12px;
+      padding: 12px;
+      height: calc(100vh - 51px);
+      overflow: hidden;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex; flex-direction: column;
+      min-height: 0;
+    }
+    .panel h2 {
+      font-size: 12px; margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted); font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
+    }
+    .panel h2 .count {
+      background: var(--panel-2); color: var(--muted);
+      border-radius: 999px; padding: 1px 7px;
+      font-size: 10px; font-weight: 500;
+    }
+    .panel .body {
+      flex: 1; min-height: 0;
+      overflow-y: auto;
+    }
+
+    /* ── Agent list ────────────────────────────────── */
+    .row {
+      padding: 8px 14px;
+      display: flex; justify-content: space-between; gap: 8px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
     .row:hover { background: var(--panel-2); }
-    .row:last-child { border-bottom: 0; }
+    .row.selected { background: var(--panel-2); border-left: 2px solid var(--accent); padding-left: 12px; }
     .row .name { font-weight: 500; }
-    .row .meta { color: var(--muted); font-size: 12px; }
-    .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--border); }
+    .row .meta { color: var(--muted); font-size: 11px; }
+    .pill {
+      display: inline-block; padding: 1px 8px;
+      border-radius: 999px; font-size: 10px;
+      border: 1px solid var(--border);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
     .pill.running { color: var(--good); border-color: rgba(106,210,126,0.4); }
     .pill.paused { color: var(--warn); border-color: rgba(245,184,106,0.4); }
-    .pill.suspended { color: var(--bad); border-color: rgba(239,110,110,0.4); }
-    .pill.created, .pill.terminated { color: var(--muted); }
+    .pill.suspended, .pill.terminated { color: var(--bad); border-color: rgba(239,110,110,0.4); }
+    .pill.created { color: var(--muted); }
+
+    /* ── Detail panel ──────────────────────────────── */
     .detail { padding: 16px; }
-    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 16px; font-size: 13px; }
+    .kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 12px; }
     .kv .k { color: var(--muted); }
     .kv .v { word-break: break-all; }
-    .actions { display: flex; gap: 8px; margin-top: 12px; }
-    .actions button { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+    .actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+    .actions button {
+      background: var(--panel-2); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 5px 10px; cursor: pointer; font-size: 12px;
+      font-family: inherit;
+    }
     .actions button:hover { background: var(--accent); color: #0b0d12; border-color: transparent; }
-    .actions button.danger:hover { background: var(--bad); }
-    .empty { color: var(--muted); padding: 16px; font-size: 13px; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    pre { background: var(--panel-2); padding: 10px; border-radius: 6px; overflow: auto; max-height: 320px; }
-    .small { font-size: 12px; color: var(--muted); }
-    .topbar { margin-left: auto; display: flex; gap: 8px; }
-    .topbar input { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
-    .topbar button { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+    .actions button.danger:hover { background: var(--bad); color: var(--fg); }
+
+    .section-title {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 16px 0 6px; font-weight: 500;
+    }
+
+    /* ── Charts (vanilla canvas) ───────────────────── */
+    .chart-wrap {
+      background: var(--panel-2); border-radius: 6px;
+      padding: 8px; margin-top: 6px;
+    }
+    canvas { display: block; width: 100%; height: 80px; }
+
+    /* ── Event ticker ──────────────────────────────── */
+    .ticker { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .ticker .empty { color: var(--muted); padding: 16px; font-size: 12px; font-family: inherit; }
+    .ev {
+      padding: 5px 14px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 60px 110px 1fr;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .ev:hover { background: var(--panel-2); }
+    .ev .ts { color: var(--muted); font-size: 10px; }
+    .ev .kind {
+      font-weight: 500; font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .ev .payload { color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ev .payload.expanded { white-space: pre-wrap; word-break: break-all; color: var(--fg); }
+    /* Event-kind color coding */
+    .ev.k-treasury_update .kind { color: var(--good); }
+    .ev.k-tier_change .kind { color: var(--accent); }
+    .ev.k-inbox_update .kind { color: #c89dff; }
+    .ev.k-heartbeat .kind { color: var(--muted); }
+    .ev.k-action_completed .kind { color: var(--accent); }
+    .ev.k-plan_created .kind { color: var(--good); }
+    .ev.k-plan_completed .kind { color: var(--good); }
+    .ev.k-soul_updated .kind { color: #c89dff; }
+    .ev.k-self_mod_request .kind { color: var(--warn); }
+    .ev.k-self_mod_promoted .kind { color: var(--good); }
+    .ev.k-self_mod_rejected .kind { color: var(--bad); }
+    .ev.k-policy_denied .kind { color: var(--bad); }
+
+    /* ── Forms (inline create agent / send msg) ────── */
+    .form-inline {
+      padding: 8px 14px; border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+    .form-inline input, .form-inline textarea {
+      background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 4px 6px; font-family: inherit; font-size: 11px;
+      width: 100%; margin-bottom: 4px;
+    }
+    .form-inline textarea { min-height: 50px; resize: vertical; font-family: ui-monospace, monospace; }
+    .form-inline .row2 { display: flex; gap: 4px; }
+    .form-inline .row2 input { margin-bottom: 0; }
+    .form-inline button {
+      background: var(--accent); color: #0b0d12;
+      border: 0; border-radius: 4px;
+      padding: 4px 10px; cursor: pointer; font-size: 11px;
+      font-family: inherit; font-weight: 500;
+    }
+    .form-inline button:hover { opacity: 0.9; }
+    .form-inline .msg { font-size: 10px; margin-top: 4px; min-height: 12px; }
+    .form-inline .msg.err { color: var(--bad); }
+    .form-inline .msg.ok { color: var(--good); }
+
+    /* ── Empty / placeholder states ─────────────────── */
+    .empty { color: var(--muted); padding: 16px; font-size: 12px; }
+
+    /* ── Footer ────────────────────────────────────── */
+    footer {
+      padding: 6px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 10px;
+      display: flex; justify-content: space-between;
+    }
+    footer code { background: var(--panel-2); padding: 1px 4px; border-radius: 3px; }
+
+    /* ── Responsive: collapse to 1 column on phone ── */
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; height: auto; overflow: visible; }
+      .panel { max-height: 400px; }
+      .topbar input { width: 160px; }
+    }
   </style>
 </head>
 <body>
 <header>
-  <h1>Automata Operator Dashboard</h1>
-  <span class="tag" id="api-tag">API: —</span>
+  <h1>Helix <span class="accent">·</span> Operator Dashboard</h1>
+  <span class="tag" id="conn-tag">disconnected</span>
   <div class="topbar">
-    <input id="api-url" placeholder="http://localhost:8080" style="width:280px" />
-    <button onclick="setApi()">Set API</button>
+    <input id="api-url" placeholder="http://localhost:8080" />
+    <button onclick="setApi()">Connect</button>
     <button onclick="refresh()">Refresh</button>
+    <button class="primary" onclick="toggleForm('create-form')">+ Agent</button>
   </div>
 </header>
+
 <main>
+  <!-- Left: agent list + create form -->
   <section class="panel">
-    <h2>Automata</h2>
-    <div class="body" id="list"><div class="empty">Loading…</div></div>
+    <h2>Agents <span class="count" id="agent-count">0</span></h2>
+    <div class="form-inline" id="create-form" style="display:none">
+      <input id="new-name" placeholder="Name (e.g. atlas-01)" />
+      <div class="row2">
+        <input id="new-prompt" placeholder="Genesis prompt" />
+      </div>
+      <div class="row2">
+        <input id="new-balance" type="number" placeholder="Initial USDC (cents)" value="100" />
+      </div>
+      <button onclick="createAgent()">Create</button>
+      <div class="msg" id="create-msg"></div>
+    </div>
+    <div class="body" id="list"><div class="empty">Not connected.</div></div>
   </section>
+
+  <!-- Middle: selected agent detail -->
   <section class="panel">
-    <h2 id="detail-title">Select an Automaton</h2>
-    <div class="body detail" id="detail"><div class="empty">No Automaton selected.</div></div>
+    <h2 id="detail-title">Select an agent</h2>
+    <div class="body" id="detail"><div class="empty">No agent selected. Pick one on the left, or create one above.</div></div>
+  </section>
+
+  <!-- Right: live event ticker + send-message form -->
+  <section class="panel">
+    <h2>Live events <span class="count" id="event-count">0</span></h2>
+    <div class="form-inline" id="send-form" style="display:none">
+      <input id="msg-to" placeholder="To address (0x... or atm_...)" />
+      <textarea id="msg-content" placeholder="Message content"></textarea>
+      <button onclick="sendMessage()">Send</button>
+      <div class="msg" id="send-msg"></div>
+    </div>
+    <div class="body ticker" id="ticker"><div class="empty">No events yet. Select an agent and connect to the stream.</div></div>
   </section>
 </main>
+
+<footer>
+  <div>Helix · <a href="https://github.com/knikhilkumar108/Helix">github.com/knikhilkumar108/Helix</a></div>
+  <div>API: <code id="api-display">—</code> · events: <span id="event-total">0</span> total</div>
+</footer>
+
 <script>
-const state = { api: localStorage.getItem("automata.api") || "http://localhost:8080", selected: null };
+"use strict";
+
+// ─── State ─────────────────────────────────────────────────────
+const state = {
+  api: localStorage.getItem("helix.api") || "http://localhost:8080",
+  agents: [],
+  selected: null,
+  events: [],          // ring buffer, max 200
+  ws: null,
+  wsReconnectTimer: null,
+  balanceHistory: [],  // {ts, micro} for the selected agent
+  ledgerCache: [],
+};
+
+const MAX_EVENTS = 200;
+
 document.getElementById("api-url").value = state.api;
-document.getElementById("api-tag").textContent = "API: " + state.api;
+document.getElementById("api-display").textContent = state.api;
 
-function setApi() {
-  const v = document.getElementById("api-url").value.trim();
-  if (v) { state.api = v; localStorage.setItem("automata.api", v); document.getElementById("api-tag").textContent = "API: " + state.api; refresh(); }
-}
-
-async function api(path) {
-  const r = await fetch(state.api + path);
-  if (!r.ok) throw new Error("HTTP " + r.status);
+// ─── API helpers ───────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const r = await fetch(state.api + path, {
+    headers: { "content-type": "application/json" },
+    ...opts,
+  });
+  if (!r.ok) {
+    let body;
+    try { body = await r.json(); } catch { body = await r.text(); }
+    throw new Error(`HTTP ${r.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  }
+  if (r.status === 204) return null;
   return r.json();
 }
 
-function fmt(x) { return x == null ? "" : String(x); }
+function setApi() {
+  const v = document.getElementById("api-url").value.trim().replace(/\/+$/, "");
+  if (!v) return;
+  state.api = v;
+  localStorage.setItem("helix.api", v);
+  document.getElementById("api-display").textContent = v;
+  // Strip /v1 prefix from input if user pasted it
+  refresh().then(connectWs);
+}
 
-function renderList(items) {
+async function checkHealth() {
+  try {
+    const h = await api("/healthz");
+    setConn(true, `connected · ${h.status}`);
+    return true;
+  } catch (e) {
+    setConn(false, `disconnected: ${e.message}`);
+    return false;
+  }
+}
+
+function setConn(ok, label) {
+  const el = document.getElementById("conn-tag");
+  el.textContent = label;
+  el.className = "tag " + (ok ? "live" : "dead");
+}
+
+// ─── Agent list ────────────────────────────────────────────────
+async function refresh() {
+  try {
+    state.agents = await api("/v1/automata");
+    renderList();
+    if (state.selected) {
+      // Refresh the detail panel in place
+      const a = state.agents.find(x => x.id === state.selected);
+      if (a) select(a.id);
+      else state.selected = null;
+    }
+    return true;
+  } catch (e) {
+    document.getElementById("list").innerHTML = `<div class="empty">Cannot reach API: ${escapeHtml(e.message)}<br><br>Set the API URL in the top bar.</div>`;
+    return false;
+  }
+}
+
+function renderList() {
   const el = document.getElementById("list");
-  if (!items.length) { el.innerHTML = '<div class="empty">No Automata yet. Create one with the CLI.</div>'; return; }
-  el.innerHTML = items.map(a => `
-    <div class="row" onclick="select('${a.id}')">
+  document.getElementById("agent-count").textContent = state.agents.length;
+  if (!state.agents.length) {
+    el.innerHTML = '<div class="empty">No agents yet. Click <b>+ Agent</b> to create one.</div>';
+    return;
+  }
+  el.innerHTML = state.agents.map(a => `
+    <div class="row ${a.id === state.selected ? 'selected' : ''}" onclick="select('${a.id}')">
       <div>
-        <div class="name">${a.name}</div>
-        <div class="meta">${a.id} · ${a.base_currency}</div>
+        <div class="name">${escapeHtml(a.name)}</div>
+        <div class="meta">${shortId(a.id)} · ${escapeHtml(a.base_currency)}</div>
       </div>
-      <span class="pill ${a.state}">${a.state}</span>
+      <span class="pill ${a.state}">${escapeHtml(a.state)}</span>
     </div>
   `).join("");
 }
 
+// ─── Detail panel ──────────────────────────────────────────────
 async function select(id) {
   state.selected = id;
-  const [a, bal, ledger, events] = await Promise.all([
-    api("/v1/automata/" + id),
-    api("/v1/treasury/" + id + "/balance"),
-    api("/v1/treasury/" + id + "/ledger?limit=20"),
-    api("/v1/automata/" + id + "/events"),
-  ]);
-  document.getElementById("detail-title").textContent = a.name + " — " + a.id;
+  state.balanceHistory = [];   // reset on new selection
+  renderList();
+  showSendForm(true);
+  try {
+    const [a, bal, ledger] = await Promise.all([
+      api("/v1/automata/" + id),
+      api("/v1/treasury/" + id + "/balance"),
+      api("/v1/treasury/" + id + "/ledger?limit=50"),
+    ]);
+    state.ledgerCache = ledger;
+    // Seed balance history with the current point
+    pushBalance(bal.balance_micro ?? bal.balance ?? 0);
+    renderDetail(a, bal, ledger);
+  } catch (e) {
+    document.getElementById("detail").innerHTML = `<div class="empty">Failed to load agent: ${escapeHtml(e.message)}</div>`;
+  }
+  // Subscribe the WebSocket to this specific agent
+  connectWs();
+}
+
+function renderDetail(a, bal, ledger) {
+  const balanceMicro = bal.balance_micro ?? bal.balance ?? 0;
+  document.getElementById("detail-title").textContent = `${a.name} · ${shortId(a.id)}`;
   document.getElementById("detail").innerHTML = `
-    <div class="grid-2">
-      <div>
-        <div class="kv">
-          <div class="k">State</div><div class="v"><span class="pill ${a.state}">${a.state}</span></div>
-          <div class="k">Wallet</div><div class="v">${a.wallet_address}</div>
-          <div class="k">Public key</div><div class="v">${a.public_key}</div>
-          <div class="k">Balance</div><div class="v">${bal.balance}</div>
-          <div class="k">Version</div><div class="v">${a.version}</div>
-          <div class="k">Reputation</div><div class="v">${a.reputation}</div>
-          <div class="k">Created</div><div class="v">${a.created_at}</div>
-        </div>
-        <div class="actions">
-          <button onclick="act('${a.id}','pause')">Pause</button>
-          <button onclick="act('${a.id}','resume')">Resume</button>
-          <button class="danger" onclick="act('${a.id}','terminate')">Terminate</button>
-        </div>
+    <div class="detail">
+      <div class="kv">
+        <div class="k">State</div>
+        <div class="v"><span class="pill ${a.state}">${escapeHtml(a.state)}</span></div>
+        <div class="k">Balance</div>
+        <div class="v"><b>${formatUsdc(balanceMicro)}</b> <span style="color:var(--muted)">USDC</span></div>
+        <div class="k">Wallet</div>
+        <div class="v"><code>${escapeHtml(a.wallet_address || "—")}</code></div>
+        <div class="k">Version</div>
+        <div class="v">${escapeHtml(a.version || "—")}</div>
+        <div class="k">Created</div>
+        <div class="v">${escapeHtml(a.created_at || "—")}</div>
       </div>
-      <div>
-        <div class="small">Treasury health</div>
-        <pre>${JSON.stringify(bal.health, null, 2)}</pre>
+
+      <div class="actions">
+        <button onclick="act('${a.id}','pause')">Pause</button>
+        <button onclick="act('${a.id}','resume')">Resume</button>
+        <button class="danger" onclick="act('${a.id}','terminate')">Terminate</button>
       </div>
+
+      <div class="section-title">Balance over time</div>
+      <div class="chart-wrap"><canvas id="balance-chart" height="80"></canvas></div>
+
+      <div class="section-title">Treasury health</div>
+      <div class="chart-wrap"><pre style="margin:0;font-size:10px;max-height:120px;overflow:auto">${escapeHtml(JSON.stringify(bal.health || {}, null, 2))}</pre></div>
+
+      <div class="section-title">Recent ledger (latest ${Math.min(ledger.length, 10)})</div>
+      <div class="chart-wrap"><pre style="margin:0;font-size:10px;max-height:160px;overflow:auto">${escapeHtml(JSON.stringify(ledger.slice(-10), null, 2))}</pre></div>
     </div>
-    <h3 style="margin-top:18px;font-size:13px;color:var(--muted)">Ledger (latest 20)</h3>
-    <pre>${JSON.stringify(ledger, null, 2)}</pre>
-    <h3 style="margin-top:18px;font-size:13px;color:var(--muted)">Recent events</h3>
-    <pre>${JSON.stringify(events.slice(-20), null, 2)}</pre>
   `;
+  drawBalanceChart();
 }
 
 async function act(id, verb) {
-  await fetch(state.api + "/v1/automata/" + id + "/" + verb, { method: "POST" });
-  refresh();
-}
-
-async function refresh() {
   try {
-    const items = await api("/v1/automata");
-    renderList(items);
-    if (state.selected) select(state.selected);
+    await api(`/v1/automata/${id}/${verb}`, { method: "POST" });
+    await refresh();
   } catch (e) {
-    document.getElementById("list").innerHTML = '<div class="empty">Cannot reach API. Check the URL.</div>';
+    alert(`Action failed: ${e.message}`);
   }
 }
 
-refresh();
-setInterval(refresh, 5000);
+// ─── Create agent ──────────────────────────────────────────────
+function toggleForm(id) {
+  const f = document.getElementById(id);
+  f.style.display = f.style.display === "none" ? "block" : "none";
+}
+
+async function createAgent() {
+  const name = document.getElementById("new-name").value.trim();
+  const prompt = document.getElementById("new-prompt").value.trim();
+  const balanceCents = parseInt(document.getElementById("new-balance").value || "0", 10);
+  const msg = document.getElementById("create-msg");
+  msg.className = "msg"; msg.textContent = "";
+  if (!name) { msg.className = "msg err"; msg.textContent = "Name is required."; return; }
+  if (!prompt) { msg.className = "msg err"; msg.textContent = "Genesis prompt is required."; return; }
+  try {
+    const initialBalanceMicro = balanceCents * 10_000;   // $0.01 = 10,000 micro-USDC
+    const a = await api("/v1/automata", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        genesis_prompt: prompt,
+        initial_balance_micro: initialBalanceMicro,
+        currency: "USDC",
+      }),
+    });
+    msg.className = "msg ok";
+    msg.textContent = `Created ${a.name} (${shortId(a.id)})`;
+    document.getElementById("new-name").value = "";
+    document.getElementById("new-prompt").value = "";
+    await refresh();
+    select(a.id);
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = `Failed: ${e.message}`;
+  }
+}
+
+// ─── Send inbox message ────────────────────────────────────────
+function showSendForm(show) {
+  document.getElementById("send-form").style.display = show ? "block" : "none";
+}
+
+async function sendMessage() {
+  const to = document.getElementById("msg-to").value.trim();
+  const content = document.getElementById("msg-content").value.trim();
+  const msg = document.getElementById("send-msg");
+  msg.className = "msg"; msg.textContent = "";
+  if (!to || !content) { msg.className = "msg err"; msg.textContent = "Both fields required."; return; }
+  try {
+    const r = await api("/v1/inbox/send", {
+      method: "POST",
+      body: JSON.stringify({
+        from_address: state.selected,
+        to_address: to,
+        content,
+      }),
+    });
+    msg.className = "msg ok";
+    msg.textContent = `Sent (id: ${shortId(r.id || "?")})`;
+    document.getElementById("msg-content").value = "";
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = `Failed: ${e.message}`;
+  }
+}
+
+// ─── WebSocket stream ──────────────────────────────────────────
+function connectWs() {
+  if (state.ws) {
+    try { state.ws.close(); } catch {}
+    state.ws = null;
+  }
+  if (!state.selected) return;
+  const wsBase = state.api.replace(/^http/, "ws");
+  const url = `${wsBase}/v1/dashboard/${state.selected}/stream`;
+  let ws;
+  try {
+    ws = new WebSocket(url);
+  } catch (e) {
+    setConn(false, `ws failed: ${e.message}`);
+    return;
+  }
+  state.ws = ws;
+  ws.onopen = () => {
+    setConn(true, `streaming ${shortId(state.selected)}`);
+    // Clear the event buffer when we connect to a new agent
+    state.events = [];
+    renderTicker();
+  };
+  ws.onmessage = (msg) => {
+    let ev;
+    try { ev = JSON.parse(msg.data); } catch { return; }
+    onEvent(ev);
+  };
+  ws.onerror = () => { /* close will follow */ };
+  ws.onclose = () => {
+    setConn(false, "disconnected");
+    if (state.ws === ws) {
+      state.ws = null;
+      // Reconnect after 2s if we still have a selection
+      clearTimeout(state.wsReconnectTimer);
+      state.wsReconnectTimer = setTimeout(() => {
+        if (state.selected) connectWs();
+      }, 2000);
+    }
+  };
+}
+
+function onEvent(ev) {
+  state.events.push(ev);
+  if (state.events.length > MAX_EVENTS) state.events.shift();
+  document.getElementById("event-total").textContent =
+    (parseInt(document.getElementById("event-total").textContent, 10) || 0) + 1;
+  renderTicker();
+
+  // Update balance history if this is a treasury event
+  if (ev.kind === "treasury_update" && ev.payload) {
+    const m = ev.payload.balance_micro ?? ev.payload.credit_balance_micro;
+    if (typeof m === "number") pushBalance(m);
+  }
+}
+
+function renderTicker() {
+  const el = document.getElementById("ticker");
+  document.getElementById("event-count").textContent = state.events.length;
+  if (!state.events.length) {
+    el.innerHTML = '<div class="empty">No events yet. The stream is live — waiting for activity.</div>';
+    return;
+  }
+  el.innerHTML = state.events.slice().reverse().map(ev => `
+    <div class="ev k-${ev.kind}" onclick="this.querySelector('.payload').classList.toggle('expanded')">
+      <div class="ts">${formatTs(ev.occurred_at)}</div>
+      <div class="kind">${escapeHtml(ev.kind)}</div>
+      <div class="payload">${escapeHtml(truncate(JSON.stringify(ev.payload || {}), 200))}</div>
+    </div>
+  `).join("");
+}
+
+function pushBalance(micro) {
+  state.balanceHistory.push({ ts: Date.now(), micro });
+  if (state.balanceHistory.length > 60) state.balanceHistory.shift();
+  drawBalanceChart();
+}
+
+function drawBalanceChart() {
+  const c = document.getElementById("balance-chart");
+  if (!c || !state.balanceHistory.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+  c.width = rect.width * dpr;
+  c.height = rect.height * dpr;
+  const ctx = c.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const data = state.balanceHistory;
+  const min = Math.min(...data.map(d => d.micro));
+  const max = Math.max(...data.map(d => d.micro));
+  const range = max - min || 1;
+
+  // Grid
+  ctx.strokeStyle = "rgba(139,149,167,0.15)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = (h / 4) * i + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // Line
+  ctx.strokeStyle = "#7c9cff";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  data.forEach((d, i) => {
+    const x = (i / (data.length - 1 || 1)) * w;
+    const y = h - ((d.micro - min) / range) * (h - 8) - 4;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Last-point dot
+  const last = data[data.length - 1];
+  const lx = w;
+  const ly = h - ((last.micro - min) / range) * (h - 8) - 4;
+  ctx.fillStyle = "#6ad27e";
+  ctx.beginPath();
+  ctx.arc(lx - 2, ly, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ─── Utilities ─────────────────────────────────────────────────
+function shortId(id) {
+  if (!id) return "—";
+  return id.length > 14 ? id.slice(0, 6) + "…" + id.slice(-4) : id;
+}
+function formatUsdc(micro) {
+  if (typeof micro === "string") {
+    // Parse strings like "1.50 USDC" or "1500000"
+    const m = micro.match(/^([\d.]+)\s*(\w+)?/);
+    if (m) {
+      const n = parseFloat(m[1]);
+      if (!isNaN(n)) return n.toFixed(2);
+    }
+    return micro;
+  }
+  return (micro / 1_000_000).toFixed(2);
+}
+function formatTs(ts) {
+  if (!ts) return "—";
+  // Accept either epoch seconds (number) or ISO string
+  const d = typeof ts === "number" ? new Date(ts * 1000) : new Date(ts);
+  if (isNaN(d.getTime())) return String(ts);
+  return d.toLocaleTimeString([], { hour12: false });
+}
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+
+// ─── Boot ─────────────────────────────────────────────────────
+(async function boot() {
+  // First do a health check; if it fails, the user can set the URL.
+  const ok = await checkHealth();
+  if (ok) {
+    await refresh();
+    // Auto-select the first agent if there is one
+    if (state.agents.length === 1) select(state.agents[0].id);
+  }
+  // Redraw the balance chart on resize (it's canvas, not responsive by default)
+  window.addEventListener("resize", () => drawBalanceChart());
+})();
 </script>
 </body>
 </html>
