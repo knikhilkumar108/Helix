@@ -364,14 +364,25 @@
   <div class="modal">
     <h2>Try the Helix demo</h2>
     <p>
-      Paste your <strong>OpenAI API key</strong> to chat with a Helix-styled
-      agent right here in the browser.
+      Pick a provider and paste an API key to chat with a Helix-styled
+      agent right here in the browser. Your key stays on your device.
     </p>
+    <div class="provider-row">
+      <label class="provider-opt">
+        <input type="radio" name="demo-provider" value="openrouter" checked />
+        <span><strong>OpenRouter</strong> &middot; <span class="free-tag">free models</span></span>
+      </label>
+      <label class="provider-opt">
+        <input type="radio" name="demo-provider" value="openai" />
+        <span><strong>OpenAI</strong> &middot; gpt-4o-mini</span>
+      </label>
+    </div>
+    <select id="demo-model-select" class="key-input" style="margin-bottom:8px"></select>
     <input
       type="password"
       id="demo-key-input"
       class="key-input"
-      placeholder="sk-..."
+      placeholder="Paste your API key"
       autocomplete="off"
       spellcheck="false"
     />
@@ -382,8 +393,8 @@
     </div>
     <p class="fineprint">
       <strong>Your key stays in your browser.</strong> It is stored in
-      <code>localStorage</code> and sent only to OpenAI's API
-      (<code>api.openai.com</code>). We never see it.
+      <code>localStorage</code> and sent only to the provider you select.
+      We never see it.
       <br><br>
       This is a styled LLM call, not the full Helix runtime
       (treasury, audit chain, inbox). For the full platform, clone the repo
