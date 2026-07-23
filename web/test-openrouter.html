@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Helix - OpenRouter Browser Test</title>
+  <style>
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0b0d12;
+      color: #e6edf3;
+    }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    p { color: #8b95a7; font-size: 13px; line-height: 1.5; }
+    textarea {
+      width: 100%; min-height: 80px;
+      background: #12161f; color: #e6edf3;
+      border: 1px solid #1f2632; border-radius: 6px;
+      padding: 10px; font-family: ui-monospace, monospace;
+      font-size: 12px; box-sizing: border-box;
+    }
+    button {
+      background: #7c9cff; color: #0b0d12;
+      border: 0; border-radius: 6px;
+      padding: 10px 20px; cursor: pointer;
+      font-size: 14px; font-weight: 500;
+      margin-top: 10px;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #result {
+      margin-top: 20px;
+      background: #12161f; border: 1px solid #1f2632;
+      border-radius: 6px; padding: 16px;
+      min-height: 100px;
+      white-space: pre-wrap; font-family: ui-monospace, monospace;
+      font-size: 12px; line-height: 1.5;
+    }
+    .label { color: #6ad27e; font-weight: 500; margin-bottom: 8px; display: block; }
+    .err { color: #ef6e6e; }
+  </style>
+</head>
+<body>
+  <h1>OpenRouter Browser Test</h1>
+  <p>
+    Paste your OpenRouter API key (starts with <code>sk-or-v1-...</code>) and click
+    "Test call". This makes one direct request to OpenRouter from your browser.
+    No UI, no streaming, no localStorage - just one fetch.
+  </p>
+  <p>
+    The request will use model <code>meta-llama/llama-3.1-8b-instruct:free</code>
+    (a free model). The full conversation is logged below the result for debugging.
+  </p>
+
+  <div class="label">OpenRouter API key</div>
+  <textarea id="key" placeholder="sk-or-v1-..." spellcheck="false"></textarea>
+
+  <div class="label" style="margin-top: 16px">Test prompt (optional)</div>
+  <textarea id="prompt" placeholder="What is Helix?">Say 'hello' in exactly 5 words.</textarea>
+
+  <button id="go" onclick="run()">Test call</button>
+
+  <div class="label" style="margin-top: 24px">Result</div>
+  <div id="result">Click "Test call" to make one OpenRouter request.</div>
+
+  <div class="label" style="margin-top: 24px">Log (browser console equivalent)</div>
+  <div id="log" style="background:#0a0c10; color:#8b95a7; padding:12px; border-radius:6px; font-family:ui-monospace,monospace; font-size:11px; min-height:60px;">Logs will appear here.</div>
+
+  <script>
+    const logEl = document.getElementById("log");
+    function log(msg, isErr) {
+      const t = new Date().toLocaleTimeString();
+      const line = document.createElement("div");
+      line.style.color = isErr ? "#ef6e6e" : "#8b95a7";
+      line.textContent = "[" + t + "] " + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    async function run() {
+      const resultEl = document.getElementById("result");
+      const btn = document.getElementById("go");
+      const key = document.getElementById("key").value.trim();
+      const prompt = document.getElementById("prompt").value.trim();
+      if (!key) { resultEl.innerHTML = '<span class="err">No API key provided.</span>'; return; }
+      btn.disabled = true;
+      resultEl.textContent = "Calling OpenRouter...";
+      log("Starting request to https://openrouter.ai/api/v1/chat/completions");
+      log("Model: meta-llama/llama-3.1-8b-instruct:free");
+      log("Prompt: " + prompt.slice(0, 60));
+      const t0 = performance.now();
+      try {
+        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + key,
+            "HTTP-Referer": "https://knikhilkumar108.github.io/Helix/",
+            "X-Title": "Helix OpenRouter Test"
+          },
+          body: JSON.stringify({
+            model: "meta-llama/llama-3.1-8b-instruct:free",
+            messages: [
+              { role: "user", content: prompt || "Say hi" }
+            ],
+            max_tokens: 100
+          })
+        });
+        const elapsed = Math.round(performance.now() - t0);
+        log("Response: HTTP " + r.status + " in " + elapsed + "ms");
+        const text = await r.text();
+        log("Body length: " + text.length + " chars");
+        if (!r.ok) {
+          resultEl.innerHTML = '<span class="err">HTTP ' + r.status + "\n\n" + text.slice(0, 800) + '</span>';
+          log("ERROR: " + text.slice(0, 200), true);
+          return;
+        }
+        const j = JSON.parse(text);
+        const reply = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || "(no content)";
+        log("Reply: " + reply.slice(0, 100));
+        resultEl.textContent = "OK in " + elapsed + "ms\n\n" + reply;
+      } catch (e) {
+        const elapsed = Math.round(performance.now() - t0);
+        log("EXCEPTION: " + e.message, true);
+        resultEl.innerHTML = '<span class="err">Exception after ' + elapsed + 'ms:\n\n' + e.message + "\n\n" +
+          "This is the most likely cause of the dashboard chat not working. " +
+          "If this is a Failed to fetch or NetworkError, it is a CORS issue. " +
+          "If it is something else, paste the message back to me.</span>";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
